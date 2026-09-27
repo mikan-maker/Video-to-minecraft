@@ -1,0 +1,974 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Minecraft Dot Movie - 120+ Blocks Edition</title>
+  <script src="https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.11.6/dist/ffmpeg.min.js"></script>
+  <style>
+    :root {
+      --bg: #111214;
+      --card: #1a1b1f;
+      --accent: #558b2f;
+      --accent-hover: #416b23;
+      --border: #2c2e35;
+      --text: #f0f2f5;
+      --text-dim: #9aa0a6;
+    }
+    body {
+      font-family: 'Segoe UI', Meiryo, sans-serif;
+      background-color: var(--bg);
+      color: var(--text);
+      margin: 0;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    h1 {
+      margin: 0 0 14px 0;
+      color: #7cb342;
+      font-size: 1.8rem;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .badge {
+      background: linear-gradient(135deg, #10b981, #3b82f6);
+      color: #fff;
+      font-size: 0.72rem;
+      padding: 3px 8px;
+      border-radius: 4px;
+      font-weight: 900;
+    }
+    .container {
+      max-width: 1120px;
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 16px 20px;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+    }
+    .grid-3 {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 12px;
+      margin-top: 10px;
+    }
+    label {
+      display: block;
+      font-size: 0.82rem;
+      color: var(--text-dim);
+      margin-bottom: 4px;
+      font-weight: 600;
+    }
+    input[type="file"], select, input[type="range"], input[type="text"] {
+      width: 100%;
+      box-sizing: border-box;
+      background: #0d0e10;
+      color: var(--text);
+      border: 1px solid var(--border);
+      padding: 8px 10px;
+      border-radius: 6px;
+      font-size: 0.88rem;
+    }
+    .range-val { color: #7cb342; font-weight: bold; }
+    .btn-row { display: flex; gap: 8px; margin-top: 14px; }
+    button.action-btn {
+      flex: 1;
+      padding: 12px;
+      border: none;
+      border-radius: 6px;
+      background-color: var(--accent);
+      color: white;
+      font-weight: bold;
+      font-size: 0.95rem;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    button.action-btn:hover:not(:disabled) { background-color: var(--accent-hover); }
+    button.action-btn:disabled { background-color: #33363d; color: #6c7078; cursor: not-allowed; }
+    .btn-download { background-color: #0284c7 !important; }
+    .btn-download:hover:not(:disabled) { background-color: #0369a1 !important; }
+    .btn-csv { background-color: #d97706 !important; flex: 0.5; }
+    .progress-bar-container {
+      width: 100%;
+      background: #0d0e10;
+      height: 10px;
+      border-radius: 5px;
+      overflow: hidden;
+      display: none;
+      margin-top: 10px;
+    }
+    .progress-bar {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, #7cb342, #3b82f6);
+      transition: width 0.08s linear;
+    }
+    #status { font-size: 0.85rem; color: var(--text-dim); margin-top: 6px; }
+
+    /* 比較ビュー */
+    .compare-container {
+      position: relative;
+      width: 100%;
+      max-width: 860px;
+      aspect-ratio: 16 / 9;
+      background: #000;
+      border-radius: 6px;
+      overflow: hidden;
+      border: 1px solid var(--border);
+      user-select: none;
+    }
+    .compare-layer {
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      object-fit: contain;
+    }
+    #compareCanvas { z-index: 1; }
+    #compareVideoClone { z-index: 2; }
+    .split-divider {
+      position: absolute;
+      top: 0; bottom: 0;
+      width: 3px; background: #fff;
+      z-index: 10; cursor: ew-resize;
+      box-shadow: 0 0 8px rgba(0,0,0,0.8);
+    }
+    .split-handle {
+      position: absolute;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      width: 26px; height: 26px;
+      background: #fff; color: #111;
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 10px; font-weight: bold;
+    }
+    .block-list {
+      display: flex; flex-wrap: wrap; gap: 4px;
+      max-height: 100px; overflow-y: auto;
+      padding: 6px; background: #0f1012;
+      border: 1px solid var(--border); border-radius: 6px; margin-top: 6px;
+    }
+    .block-chip {
+      display: flex; align-items: center; gap: 4px;
+      font-size: 0.7rem; background: #23252a;
+      padding: 2px 6px; border-radius: 3px;
+    }
+    .block-chip img { width: 14px; height: 14px; image-rendering: pixelated; }
+    video { display: none; }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <h1>⛏️ Minecraft Dot Movie <span class="badge">本家級 120+ BLOCKS</span></h1>
+
+    <div class="card">
+      <label>1. 動画ファイルを選択 (.mov, .mp4, .webm):</label>
+      <input type="file" id="videoInput" accept="video/mp4,video/quicktime,video/webm,.mov,.mp4,.webm">
+
+      <div class="grid-3">
+        <div>
+          <label>横ブロック数: <span id="blockWidthVal" class="range-val">512</span></label>
+          <input type="range" id="blockWidth" min="16" max="512" step="8" value="512">
+        </div>
+
+        <div>
+          <label>🔥 彩度ブースト: <span id="saturateVal" class="range-val">130%</span></label>
+          <input type="range" id="saturateInput" min="100" max="220" step="5" value="130">
+        </div>
+
+        <div>
+          <label>✨ コントラスト: <span id="contrastVal" class="range-val">115%</span></label>
+          <input type="range" id="contrastInput" min="100" max="180" step="5" value="115">
+        </div>
+
+        <div>
+          <label>書き出し形式 (拡張子):</label>
+          <select id="exportFormat">
+            <option value="mp4" selected>MP4 (.mp4)</option>
+            <option value="mov">MOV (.mov / QuickTime)</option>
+            <option value="webm">WebM (.webm / 超速)</option>
+            <option value="gif">GIF アニメ (.gif)</option>
+          </select>
+        </div>
+
+        <div>
+          <label>描画サイズ (px):</label>
+          <select id="tileSizeSelect">
+            <option value="2">2px (512ブロック時 1024px・最速)</option>
+            <option value="4" selected>4px (512ブロック時 2048px・2K推奨)</option>
+            <option value="8">8px (512ブロック時 4096px・4K)</option>
+          </select>
+        </div>
+
+        <div>
+          <label>手持ちツール演出:</label>
+          <select id="toolSwing">
+            <option value="none">なし</option>
+            <option value="sword" selected>ダイヤの剣 (歩行スイング)</option>
+            <option value="pickaxe">ダイヤのツルハシ</option>
+          </select>
+        </div>
+
+        <div>
+          <label>マイクラHUD合成:</label>
+          <select id="hudOverlay">
+            <option value="none">なし</option>
+            <option value="hud" selected>操作画面 (体力・満腹度)</option>
+          </select>
+        </div>
+
+        <div>
+          <label>マイクラ風字幕テキスト:</label>
+          <input type="text" id="subtitleText" placeholder="空欄で非表示" value="MINECRAFT MOVIE">
+        </div>
+      </div>
+
+      <div style="margin-top: 10px;">
+        <label>使用される本家級ブロック群 (<span id="loadedBlockCount">0</span> 個 ロード完了):</label>
+        <div class="block-list" id="blockList"></div>
+      </div>
+
+      <div class="btn-row">
+        <button id="convertBtn" class="action-btn" disabled>本物のブロックで動画に変換</button>
+        <button id="downloadBtn" class="action-btn btn-download" style="display: none;">動画をダウンロード</button>
+        <button id="csvBtn" class="action-btn btn-csv" style="display: none;">建築資材CSVを出力</button>
+      </div>
+
+      <div class="progress-bar-container" id="progressContainer">
+        <div class="progress-bar" id="progressBar"></div>
+      </div>
+      <div id="status">全120種類以上の公式ブロック画像を読み込み中...</div>
+      <div id="blockUsageSummary" style="font-size: 0.8rem; color: var(--text-dim); margin-top: 6px;"></div>
+    </div>
+
+    <!-- プレビュー＆分割比較 -->
+    <div class="card" style="display: flex; flex-direction: column; align-items: center; gap: 8px;">
+      <div style="width: 100%; display: flex; justify-content: space-between; align-items: center;">
+        <label style="margin:0;">プレビュー (中央バーをドラッグして元動画と比較可能)</label>
+        <span id="previewTimeText" style="font-size: 0.8rem; color: var(--text-dim);">00:00.0</span>
+      </div>
+
+      <div class="compare-container" id="compareWrapper">
+        <canvas id="compareCanvas" class="compare-layer"></canvas>
+        <video id="compareVideoClone" class="compare-layer" playsinline muted></video>
+        <div class="split-divider" id="splitDivider" style="left: 50%;">
+          <div class="split-handle">◀▶</div>
+        </div>
+      </div>
+
+      <input type="range" id="previewSeek" min="0" max="100" value="0" step="0.1" style="width: 100%;" disabled>
+      <video id="sourceVideo" playsinline muted crossorigin="anonymous"></video>
+    </div>
+  </div>
+
+  <script>
+    // --- 1. minecraft-dot.pictures 本家級 120種類以上の公式ブロック定義 ---
+    const ASSET_BASE = "https://cdn.jsdelivr.net/gh/InventivetalentDev/minecraft-assets@1.20.2/assets/minecraft/textures/block/";
+    const ITEM_BASE  = "https://cdn.jsdelivr.net/gh/InventivetalentDev/minecraft-assets@1.20.2/assets/minecraft/textures/item/";
+
+    const BLOCK_MANIFEST = [
+      // コンクリート 16色
+      { id: "white_concrete", name: "白コンクリート", file: "white_concrete.png" },
+      { id: "orange_concrete", name: "橙コンクリート", file: "orange_concrete.png" },
+      { id: "magenta_concrete", name: "赤紫コンクリート", file: "magenta_concrete.png" },
+      { id: "light_blue_concrete", name: "空色コンクリート", file: "light_blue_concrete.png" },
+      { id: "yellow_concrete", name: "黄コンクリート", file: "yellow_concrete.png" },
+      { id: "lime_concrete", name: "黄緑コンクリート", file: "lime_concrete.png" },
+      { id: "pink_concrete", name: "桃色コンクリート", file: "pink_concrete.png" },
+      { id: "gray_concrete", name: "灰色コンクリート", file: "gray_concrete.png" },
+      { id: "light_gray_concrete", name: "薄灰コンクリート", file: "light_gray_concrete.png" },
+      { id: "cyan_concrete", name: "青緑コンクリート", file: "cyan_concrete.png" },
+      { id: "purple_concrete", name: "紫コンクリート", file: "purple_concrete.png" },
+      { id: "blue_concrete", name: "青コンクリート", file: "blue_concrete.png" },
+      { id: "brown_concrete", name: "茶コンクリート", file: "brown_concrete.png" },
+      { id: "green_concrete", name: "緑コンクリート", file: "green_concrete.png" },
+      { id: "red_concrete", name: "赤コンクリート", file: "red_concrete.png" },
+      { id: "black_concrete", name: "黒コンクリート", file: "black_concrete.png" },
+
+      // コンクリートパウダー 16色 (パウダー特有の明度・微細テクスチャ)
+      { id: "white_concrete_powder", name: "白コンクリートパウダー", file: "white_concrete_powder.png" },
+      { id: "orange_concrete_powder", name: "橙コンクリートパウダー", file: "orange_concrete_powder.png" },
+      { id: "magenta_concrete_powder", name: "赤紫コンクリートパウダー", file: "magenta_concrete_powder.png" },
+      { id: "light_blue_concrete_powder", name: "空色コンクリートパウダー", file: "light_blue_concrete_powder.png" },
+      { id: "yellow_concrete_powder", name: "黄コンクリートパウダー", file: "yellow_concrete_powder.png" },
+      { id: "lime_concrete_powder", name: "黄緑コンクリートパウダー", file: "lime_concrete_powder.png" },
+      { id: "pink_concrete_powder", name: "桃色コンクリートパウダー", file: "pink_concrete_powder.png" },
+      { id: "gray_concrete_powder", name: "灰色コンクリートパウダー", file: "gray_concrete_powder.png" },
+      { id: "light_gray_concrete_powder", name: "薄灰コンクリートパウダー", file: "light_gray_concrete_powder.png" },
+      { id: "cyan_concrete_powder", name: "青緑コンクリートパウダー", file: "cyan_concrete_powder.png" },
+      { id: "purple_concrete_powder", name: "紫コンクリートパウダー", file: "purple_concrete_powder.png" },
+      { id: "blue_concrete_powder", name: "青コンクリートパウダー", file: "blue_concrete_powder.png" },
+      { id: "brown_concrete_powder", name: "茶コンクリートパウダー", file: "brown_concrete_powder.png" },
+      { id: "green_concrete_powder", name: "緑コンクリートパウダー", file: "green_concrete_powder.png" },
+      { id: "red_concrete_powder", name: "赤コンクリートパウダー", file: "red_concrete_powder.png" },
+      { id: "black_concrete_powder", name: "黒コンクリートパウダー", file: "black_concrete_powder.png" },
+
+      // テラコッタ 16色 (肌色・自然な陰影のグラデーションに不可欠)
+      { id: "terracotta", name: "素焼きテラコッタ", file: "terracotta.png" },
+      { id: "white_terracotta", name: "白テラコッタ (肌色)", file: "white_terracotta.png" },
+      { id: "orange_terracotta", name: "橙テラコッタ", file: "orange_terracotta.png" },
+      { id: "magenta_terracotta", name: "赤紫テラコッタ", file: "magenta_terracotta.png" },
+      { id: "light_blue_terracotta", name: "空色テラコッタ", file: "light_blue_terracotta.png" },
+      { id: "yellow_terracotta", name: "黄テラコッタ", file: "yellow_terracotta.png" },
+      { id: "lime_terracotta", name: "黄緑テラコッタ", file: "lime_terracotta.png" },
+      { id: "pink_terracotta", name: "桃色テラコッタ", file: "pink_terracotta.png" },
+      { id: "gray_terracotta", name: "灰色テラコッタ", file: "gray_terracotta.png" },
+      { id: "light_gray_terracotta", name: "薄灰テラコッタ", file: "light_gray_terracotta.png" },
+      { id: "cyan_terracotta", name: "青緑テラコッタ", file: "cyan_terracotta.png" },
+      { id: "purple_terracotta", name: "紫テラコッタ", file: "purple_terracotta.png" },
+      { id: "blue_terracotta", name: "青テラコッタ", file: "blue_terracotta.png" },
+      { id: "brown_terracotta", name: "茶テラコッタ", file: "brown_terracotta.png" },
+      { id: "green_terracotta", name: "緑テラコッタ", file: "green_terracotta.png" },
+      { id: "red_terracotta", name: "赤テラコッタ", file: "red_terracotta.png" },
+      { id: "black_terracotta", name: "黒テラコッタ", file: "black_terracotta.png" },
+
+      // 羊毛 16色
+      { id: "white_wool", name: "白の羊毛", file: "white_wool.png" },
+      { id: "orange_wool", name: "橙の羊毛", file: "orange_wool.png" },
+      { id: "magenta_wool", name: "赤紫の羊毛", file: "magenta_wool.png" },
+      { id: "light_blue_wool", name: "空色の羊毛", file: "light_blue_wool.png" },
+      { id: "yellow_wool", name: "黄の羊毛", file: "yellow_wool.png" },
+      { id: "lime_wool", name: "黄緑の羊毛", file: "lime_wool.png" },
+      { id: "pink_wool", name: "桃色の羊毛", file: "pink_wool.png" },
+      { id: "gray_wool", name: "灰色の羊毛", file: "gray_wool.png" },
+      { id: "light_gray_wool", name: "薄灰色の羊毛", file: "light_gray_wool.png" },
+      { id: "cyan_wool", name: "青緑の羊毛", file: "cyan_wool.png" },
+      { id: "purple_wool", name: "紫の羊毛", file: "purple_wool.png" },
+      { id: "blue_wool", name: "青の羊毛", file: "blue_wool.png" },
+      { id: "brown_wool", name: "茶の羊毛", file: "brown_wool.png" },
+      { id: "green_wool", name: "緑の羊毛", file: "green_wool.png" },
+      { id: "red_wool", name: "赤の羊毛", file: "red_wool.png" },
+      { id: "black_wool", name: "黒の羊毛", file: "black_wool.png" },
+
+      // 木材 11種
+      { id: "cherry_planks", name: "サクラ木材 (ピンク)", file: "cherry_planks.png" },
+      { id: "bamboo_planks", name: "竹の板材 (明るい黄)", file: "bamboo_planks.png" },
+      { id: "crimson_planks", name: "真紅の木材 (深紅)", file: "crimson_planks.png" },
+      { id: "warped_planks", name: "歪んだ木材 (青緑)", file: "warped_planks.png" },
+      { id: "mangrove_planks", name: "マングローブ木材", file: "mangrove_planks.png" },
+      { id: "oak_planks", name: "オーク木材", file: "oak_planks.png" },
+      { id: "spruce_planks", name: "トウヒ木材", file: "spruce_planks.png" },
+      { id: "birch_planks", name: "シラカバ木材", file: "birch_planks.png" },
+      { id: "jungle_planks", name: "ジャングル木材", file: "jungle_planks.png" },
+      { id: "acacia_planks", name: "アカシア木材", file: "acacia_planks.png" },
+      { id: "dark_oak_planks", name: "ダークオーク木材", file: "dark_oak_planks.png" },
+
+      // 石材・岩石 20種以上
+      { id: "stone", name: "石", file: "stone.png" },
+      { id: "smooth_stone", name: "滑らかな石", file: "smooth_stone.png" },
+      { id: "cobblestone", name: "丸石", file: "cobblestone.png" },
+      { id: "mossy_cobblestone", name: "苔むした丸石", file: "mossy_cobblestone.png" },
+      { id: "granite", name: "花崗岩", file: "granite.png" },
+      { id: "diorite", name: "閃緑岩", file: "diorite.png" },
+      { id: "andesite", name: "安山岩", file: "andesite.png" },
+      { id: "calcite", name: "方解石 (白)", file: "calcite.png" },
+      { id: "tuff", name: "凝灰岩", file: "tuff.png" },
+      { id: "deepslate", name: "深層岩", file: "deepslate.png" },
+      { id: "bricks", name: "レンガ", file: "bricks.png" },
+      { id: "mud_bricks", name: "泥レンガ", file: "mud_bricks.png" },
+      { id: "sandstone", name: "砂岩", file: "sandstone.png" },
+      { id: "red_sandstone", name: "赤砂岩", file: "red_sandstone.png" },
+      { id: "prismarine", name: "プリズマリン", file: "prismarine.png" },
+      { id: "prismarine_bricks", name: "プリズマリンレンガ", file: "prismarine_bricks.png" },
+      { id: "dark_prismarine", name: "暗海晶石", file: "dark_prismarine.png" },
+      { id: "nether_bricks", name: "ネザーレンガ", file: "nether_bricks.png" },
+      { id: "red_nether_bricks", name: "赤いネザーレンガ", file: "red_nether_bricks.png" },
+      { id: "end_stone", name: "エンドストーン", file: "end_stone.png" },
+      { id: "blackstone", name: "ブラックストーン", file: "blackstone.png" },
+      { id: "basalt_side", name: "玄武岩", file: "basalt_side.png" },
+      { id: "obsidian", name: "黒曜石", file: "obsidian.png" },
+
+      // 鉱石・金属・クリスタル
+      { id: "gold_block", name: "金ブロック", file: "gold_block.png" },
+      { id: "iron_block", name: "鉄ブロック", file: "iron_block.png" },
+      { id: "diamond_block", name: "ダイヤブロック", file: "diamond_block.png" },
+      { id: "emerald_block", name: "エメラルド", file: "emerald_block.png" },
+      { id: "lapis_block", name: "ラピスラズリ", file: "lapis_block.png" },
+      { id: "redstone_block", name: "レッドストーン", file: "redstone_block.png" },
+      { id: "amethyst_block", name: "アメジスト", file: "amethyst_block.png" },
+      { id: "copper_block", name: "銅ブロック", file: "copper_block.png" },
+      { id: "oxidized_copper", name: "酸化銅 (青緑)", file: "oxidized_copper.png" },
+      { id: "netherite_block", name: "ネザライトブロック", file: "netherite_block.png" },
+
+      // 自然・特殊
+      { id: "grass_block_side", name: "草ブロック", file: "grass_block_side.png" },
+      { id: "dirt", name: "土", file: "dirt.png" },
+      { id: "coarse_dirt", name: "粗い土", file: "coarse_dirt.png" },
+      { id: "podzol_side", name: "ポドゾル", file: "podzol_side.png" },
+      { id: "mycelium_side", name: "菌糸", file: "mycelium_side.png" },
+      { id: "mud", name: "泥", file: "mud.png" },
+      { id: "clay", name: "粘土ブロック", file: "clay.png" },
+      { id: "sand", name: "砂", file: "sand.png" },
+      { id: "red_sand", name: "赤砂", file: "red_sand.png" },
+      { id: "gravel", name: "砂利", file: "gravel.png" },
+      { id: "soul_sand", name: "ソウルサンド", file: "soul_sand.png" },
+      { id: "netherrack", name: "ネザーラック", file: "netherrack.png" },
+      { id: "glowstone", name: "グロウストーン", file: "glowstone.png" },
+      { id: "sea_lantern", name: "シーランタン", file: "sea_lantern.png" },
+      { id: "sponge", name: "スポンジ", file: "sponge.png" },
+      { id: "honeycomb_block", name: "ハニカムブロック", file: "honeycomb_block.png" },
+      { id: "slime_block", name: "スライムブロック", file: "slime_block.png" },
+      { id: "bone_block_side", name: "骨ブロック", file: "bone_block_side.png" },
+      { id: "bookshelf", name: "本棚", file: "bookshelf.png" },
+      { id: "tnt_side", name: "TNT", file: "tnt_side.png" }
+    ];
+
+    // --- 2. 高精度 CIELAB ＆ 彩度優先色差計算 ---
+    function rgbToLab(r, g, b) {
+      let r_ = r / 255, g_ = g / 255, b_ = b / 255;
+      r_ = (r_ > 0.04045) ? Math.pow((r_ + 0.055) / 1.055, 2.4) : r_ / 12.92;
+      g_ = (g_ > 0.04045) ? Math.pow((g_ + 0.055) / 1.055, 2.4) : g_ / 12.92;
+      b_ = (b_ > 0.04045) ? Math.pow((b_ + 0.055) / 1.055, 2.4) : b_ / 12.92;
+
+      const x = (r_ * 0.4124 + g_ * 0.3576 + b_ * 0.1805) / 0.95047;
+      const y = (r_ * 0.2126 + g_ * 0.7152 + b_ * 0.0722) / 1.00000;
+      const z = (r_ * 0.0193 + g_ * 0.1192 + b_ * 0.9505) / 1.08883;
+
+      const fx = (x > 0.008856) ? Math.cbrt(x) : (7.787 * x) + (16 / 116);
+      const fy = (y > 0.008856) ? Math.cbrt(y) : (7.787 * y) + (16 / 116);
+      const fz = (z > 0.008856) ? Math.cbrt(z) : (7.787 * z) + (16 / 116);
+
+      const L = (116 * fy) - 16;
+      const a = 500 * (fx - fy);
+      const bVal = 200 * (fy - fz);
+      const chroma = Math.sqrt(a * a + bVal * bVal);
+      return [L, a, bVal, chroma];
+    }
+
+    function deltaEChroma(lab1, lab2) {
+      const dL = lab1[0] - lab2[0];
+      const da = lab1[1] - lab2[1];
+      const db = lab1[2] - lab2[2];
+      let dist = dL * dL * 0.65 + (da * da + db * db) * 1.35; // 色味を重視
+
+      // 元の色が鮮やかなのに無彩色ブロック（石・土・灰）に吸い込まれないようにペナルティ付与
+      if (lab1[3] > 18 && lab2[3] < 12) {
+        dist += 3000;
+      }
+      return dist;
+    }
+
+    // --- 3. 120種類ブロックの非同期並列ロード ---
+    let loadedBlocks = [];
+    const colorLUT = new Int16Array(262144);
+    colorLUT.fill(-1);
+    let totalUsageMap = {};
+
+    const toolImages = { sword: null, pickaxe: null };
+    const blockListEl = document.getElementById('blockList');
+    const loadedCountEl = document.getElementById('loadedBlockCount');
+    const statusText = document.getElementById('status');
+
+    async function loadAllAssets() {
+      const loadImg = (url) => new Promise(r => {
+        const i = new Image(); i.crossOrigin = "anonymous";
+        i.src = url; i.onload = () => r(i); i.onerror = () => r(null);
+      });
+      toolImages.sword = await loadImg(ITEM_BASE + "diamond_sword.png");
+      toolImages.pickaxe = await loadImg(ITEM_BASE + "diamond_pickaxe.png");
+
+      const promises = BLOCK_MANIFEST.map(item => {
+        return new Promise((resolve) => {
+          const img = new Image();
+          img.crossOrigin = "anonymous";
+          img.src = ASSET_BASE + item.file;
+          img.onload = () => {
+            const c = document.createElement('canvas');
+            c.width = 16; c.height = 16;
+            const ctx = c.getContext('2d');
+            ctx.drawImage(img, 0, 0, 16, 16);
+            const imgData = ctx.getImageData(0, 0, 16, 16);
+            const data32 = new Uint32Array(imgData.data.buffer);
+
+            let rSum = 0, gSum = 0, bSum = 0;
+            for (let i = 0; i < imgData.data.length; i += 4) {
+              rSum += imgData.data[i]; gSum += imgData.data[i + 1]; bSum += imgData.data[i + 2];
+            }
+            const avgR = Math.round(rSum / 256);
+            const avgG = Math.round(gSum / 256);
+            const avgB = Math.round(bSum / 256);
+
+            resolve({
+              id: item.id,
+              name: item.name,
+              img: img,
+              pixels32: data32,
+              lab: rgbToLab(avgR, avgG, avgB)
+            });
+          };
+          img.onerror = () => resolve(null);
+        });
+      });
+
+      const results = await Promise.all(promises);
+      loadedBlocks = results.filter(b => b !== null);
+      loadedCountEl.textContent = loadedBlocks.length;
+
+      blockListEl.innerHTML = '';
+      loadedBlocks.forEach(b => {
+        const chip = document.createElement('div');
+        chip.className = 'block-chip';
+        const img = document.createElement('img');
+        img.src = b.img.src;
+        chip.appendChild(img);
+        const s = document.createElement('span');
+        s.textContent = b.name;
+        chip.appendChild(s);
+        blockListEl.appendChild(chip);
+      });
+
+      statusText.textContent = `✅ 本家級 ${loadedBlocks.length} 個の公式ブロックを配備完了！動画を選択してください。`;
+    }
+
+    // --- 4. DOM ＆ コントロール ---
+    const videoInput = document.getElementById('videoInput');
+    const blockWidthInput = document.getElementById('blockWidth');
+    const blockWidthVal = document.getElementById('blockWidthVal');
+    const saturateInput = document.getElementById('saturateInput');
+    const saturateVal = document.getElementById('saturateVal');
+    const contrastInput = document.getElementById('contrastInput');
+    const contrastVal = document.getElementById('contrastVal');
+    const exportFormat = document.getElementById('exportFormat');
+    const tileSizeSelect = document.getElementById('tileSizeSelect');
+    const toolSwing = document.getElementById('toolSwing');
+    const hudOverlay = document.getElementById('hudOverlay');
+    const subtitleText = document.getElementById('subtitleText');
+    const convertBtn = document.getElementById('convertBtn');
+    const downloadBtn = document.getElementById('downloadBtn');
+    const csvBtn = document.getElementById('csvBtn');
+    const progressContainer = document.getElementById('progressContainer');
+    const progressBar = document.getElementById('progressBar');
+    const previewSeek = document.getElementById('previewSeek');
+    const previewTimeText = document.getElementById('previewTimeText');
+    const sourceVideo = document.getElementById('sourceVideo');
+    const compareVideoClone = document.getElementById('compareVideoClone');
+    const compareCanvas = document.getElementById('compareCanvas');
+    const outCtx = compareCanvas.getContext('2d', { alpha: false, desynchronized: true });
+    outCtx.imageSmoothingEnabled = false;
+
+    const sampleCanvas = document.createElement('canvas');
+    const sampleCtx = sampleCanvas.getContext('2d', { willReadFrequently: true });
+
+    let currentFile = null;
+    let finalDownloadUrl = null;
+    let ffmpegInstance = null;
+    let frameCounter = 0;
+
+    // 分割スライダー
+    const splitDivider = document.getElementById('splitDivider');
+    const compareWrapper = document.getElementById('compareWrapper');
+    let isDraggingSplit = false;
+
+    function updateSplit(pct) {
+      const p = Math.max(0, Math.min(100, pct));
+      splitDivider.style.left = `${p}%`;
+      compareVideoClone.style.clipPath = `polygon(${p}% 0, 100% 0, 100% 100%, ${p}% 100%)`;
+    }
+    splitDivider.addEventListener('mousedown', () => isDraggingSplit = true);
+    window.addEventListener('mouseup', () => isDraggingSplit = false);
+    window.addEventListener('mousemove', (e) => {
+      if (!isDraggingSplit) return;
+      const rect = compareWrapper.getBoundingClientRect();
+      updateSplit(((e.clientX - rect.left) / rect.width) * 100);
+    });
+
+    saturateInput.addEventListener('input', () => {
+      saturateVal.textContent = `${saturateInput.value}%`;
+      colorLUT.fill(-1);
+      renderFrame();
+    });
+    contrastInput.addEventListener('input', () => {
+      contrastVal.textContent = `${contrastInput.value}%`;
+      colorLUT.fill(-1);
+      renderFrame();
+    });
+    blockWidthInput.addEventListener('input', () => {
+      blockWidthVal.textContent = blockWidthInput.value;
+      renderFrame();
+    });
+    [tileSizeSelect, toolSwing, hudOverlay, subtitleText].forEach(el => {
+      el.addEventListener('change', () => {
+        colorLUT.fill(-1);
+        renderFrame();
+      });
+    });
+
+    videoInput.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      currentFile = file;
+
+      const url = URL.createObjectURL(file);
+      sourceVideo.src = url;
+      compareVideoClone.src = url;
+      sourceVideo.onloadedmetadata = () => {
+        convertBtn.disabled = false;
+        previewSeek.disabled = false;
+        previewSeek.max = sourceVideo.duration;
+        previewSeek.value = 0;
+        statusText.textContent = `動画認識: ${sourceVideo.videoWidth}x${sourceVideo.videoHeight} (${sourceVideo.duration.toFixed(1)}s)`;
+        sourceVideo.currentTime = 0;
+        compareVideoClone.currentTime = 0;
+      };
+    });
+
+    sourceVideo.onseeked = () => {
+      compareVideoClone.currentTime = sourceVideo.currentTime;
+      renderFrame();
+    };
+
+    previewSeek.addEventListener('input', () => {
+      sourceVideo.currentTime = parseFloat(previewSeek.value);
+      previewTimeText.textContent = `${parseFloat(previewSeek.value).toFixed(1)}s`;
+    });
+
+    function applyColorFilter(r, g, b, satFactor, conFactor) {
+      let r_ = (r - 128) * conFactor + 128;
+      let g_ = (g - 128) * conFactor + 128;
+      let b_ = (b - 128) * conFactor + 128;
+
+      const gray = 0.2989 * r_ + 0.5870 * g_ + 0.1140 * b_;
+      r_ = gray + (r_ - gray) * satFactor;
+      g_ = gray + (g_ - gray) * satFactor;
+      b_ = gray + (b_ - gray) * satFactor;
+
+      return [
+        Math.min(255, Math.max(0, Math.round(r_))),
+        Math.min(255, Math.max(0, Math.round(g_))),
+        Math.min(255, Math.max(0, Math.round(b_)))
+      ];
+    }
+
+    function getClosestBlockIdx(r, g, b) {
+      const key = ((r >> 2) << 12) | ((g >> 2) << 6) | (b >> 2);
+      const cached = colorLUT[key];
+      if (cached !== -1) return cached;
+
+      const targetLab = rgbToLab(r, g, b);
+      let minD = Infinity;
+      let bestIdx = 0;
+
+      for (let i = 0; i < loadedBlocks.length; i++) {
+        const d = deltaEChroma(targetLab, loadedBlocks[i].lab);
+        if (d < minD) {
+          minD = d;
+          bestIdx = i;
+        }
+      }
+      colorLUT[key] = bestIdx;
+      return bestIdx;
+    }
+
+    // --- 5. 爆速ダイレクトメモリ レンダラー ---
+    function renderFrame(recordUsage = false) {
+      if (!sourceVideo.videoWidth || loadedBlocks.length === 0) return;
+
+      const blockCountX = parseInt(blockWidthInput.value, 10);
+      const aspect = sourceVideo.videoHeight / sourceVideo.videoWidth;
+      const blockCountY = Math.max(1, Math.round(blockCountX * aspect));
+
+      sampleCanvas.width = blockCountX;
+      sampleCanvas.height = blockCountY;
+      sampleCtx.drawImage(sourceVideo, 0, 0, blockCountX, blockCountY);
+      const srcData = sampleCtx.getImageData(0, 0, blockCountX, blockCountY).data;
+
+      const tileSize = parseInt(tileSizeSelect.value, 10);
+      const outW = blockCountX * tileSize;
+      const outH = blockCountY * tileSize;
+
+      if (compareCanvas.width !== outW || compareCanvas.height !== outH) {
+        compareCanvas.width = outW;
+        compareCanvas.height = outH;
+      }
+
+      const outImageData = outCtx.createImageData(outW, outH);
+      const outBuf32 = new Uint32Array(outImageData.data.buffer);
+
+      const satFactor = parseInt(saturateInput.value, 10) / 100;
+      const conFactor = parseInt(contrastInput.value, 10) / 100;
+
+      for (let y = 0; y < blockCountY; y++) {
+        for (let x = 0; x < blockCountX; x++) {
+          const sIdx = (y * blockCountX + x) * 4;
+          const [cr, cg, cb] = applyColorFilter(srcData[sIdx], srcData[sIdx+1], srcData[sIdx+2], satFactor, conFactor);
+
+          const blockIdx = getClosestBlockIdx(cr, cg, cb);
+          const block = loadedBlocks[blockIdx];
+          const blockPixels = block.pixels32;
+
+          if (recordUsage) {
+            totalUsageMap[block.name] = (totalUsageMap[block.name] || 0) + 1;
+          }
+
+          const baseX = x * tileSize;
+          const baseY = y * tileSize;
+
+          for (let ty = 0; ty < tileSize; ty++) {
+            const outRow = (baseY + ty) * outW;
+            const texY = Math.floor((ty / tileSize) * 16);
+            const texRow = texY * 16;
+            for (let tx = 0; tx < tileSize; tx++) {
+              const texX = Math.floor((tx / tileSize) * 16);
+              outBuf32[outRow + (baseX + tx)] = blockPixels[texRow + texX];
+            }
+          }
+        }
+      }
+
+      outCtx.putImageData(outImageData, 0, 0);
+
+      // HUD合成
+      if (hudOverlay.value === 'hud') {
+        drawHUD(outCtx, outW, outH);
+      }
+
+      // 手持ちツールスイング演出
+      const toolType = toolSwing.value;
+      if (toolType !== 'none' && toolImages[toolType]) {
+        drawToolSwing(outCtx, outW, outH, toolImages[toolType]);
+      }
+
+      // マイクラ字幕
+      const text = subtitleText.value.trim();
+      if (text) {
+        drawMinecraftSubtitle(outCtx, outW, outH, text);
+      }
+
+      frameCounter++;
+    }
+
+    function drawToolSwing(ctx, w, h, img) {
+      ctx.save();
+      const scale = Math.max(1, Math.floor(w / 320));
+      const bob = Math.sin(frameCounter * 0.3) * (6 * scale);
+      const toolSize = 72 * scale;
+      const x = w - toolSize - (10 * scale);
+      const y = h - toolSize + (15 * scale) + bob;
+
+      ctx.translate(x + toolSize/2, y + toolSize/2);
+      ctx.rotate((-15 + Math.sin(frameCounter * 0.3) * 8) * Math.PI / 180);
+      ctx.drawImage(img, -toolSize/2, -toolSize/2, toolSize, toolSize);
+      ctx.restore();
+    }
+
+    function drawMinecraftSubtitle(ctx, w, h, text) {
+      ctx.save();
+      const fontSize = Math.max(12, Math.floor(w / 38));
+      ctx.font = `bold ${fontSize}px monospace`;
+      ctx.textAlign = 'center';
+      const textY = fontSize + 16;
+
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+      ctx.fillText(text, w / 2 + 2, textY + 2);
+      ctx.fillStyle = '#ffff55';
+      ctx.fillText(text, w / 2, textY);
+      ctx.restore();
+    }
+
+    function drawHUD(ctx, w, h) {
+      ctx.save();
+      const scale = Math.max(1, Math.floor(w / 480));
+      const barY = h - 28 * scale;
+      const centerX = w / 2;
+      const slotW = 20 * scale;
+      const hotbarW = slotW * 9;
+      const startX = centerX - hotbarW / 2;
+
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+      ctx.fillRect(startX - 2, barY - 2, hotbarW + 4, slotW + 4);
+
+      for (let i = 0; i < 9; i++) {
+        const sx = startX + i * slotW;
+        ctx.strokeStyle = (i === 0) ? '#ffffff' : '#8b8b8b';
+        ctx.lineWidth = Math.max(1, 2 * scale);
+        ctx.strokeRect(sx, barY, slotW, slotW);
+      }
+
+      const heartY = barY - 14 * scale;
+      const heartSize = 8 * scale;
+      for (let i = 0; i < 10; i++) {
+        const hx = startX + i * (heartSize + 1);
+        ctx.fillStyle = '#ff2222';
+        ctx.beginPath();
+        ctx.arc(hx + heartSize/4, heartY, heartSize/4, 0, Math.PI, true);
+        ctx.arc(hx + heartSize*3/4, heartY, heartSize/4, 0, Math.PI, true);
+        ctx.lineTo(hx + heartSize/2, heartY + heartSize/2);
+        ctx.fill();
+      }
+      ctx.restore();
+    }
+
+    // --- 6. 動画書き出し（二重拡張子バグの完全修正版） ---
+    convertBtn.addEventListener('click', async () => {
+      if (!currentFile || loadedBlocks.length === 0) return;
+
+      convertBtn.disabled = true;
+      downloadBtn.style.display = 'none';
+      csvBtn.style.display = 'none';
+      progressContainer.style.display = 'block';
+      progressBar.style.width = '0%';
+      statusText.textContent = '本家級120+ブロックで動画を高速生成中...';
+
+      totalUsageMap = {};
+      frameCounter = 0;
+
+      const fps = 24;
+      const frameInterval = 1 / fps;
+      const duration = sourceVideo.duration;
+
+      let audioTracks = [];
+      try {
+        const st = sourceVideo.captureStream ? sourceVideo.captureStream() : null;
+        if (st && st.getAudioTracks().length > 0) audioTracks = st.getAudioTracks();
+      } catch (_) {}
+
+      const canvasStream = compareCanvas.captureStream(fps);
+      const combinedStream = new MediaStream([...canvasStream.getVideoTracks(), ...audioTracks]);
+
+      let recMime = 'video/webm;codecs=vp9';
+      if (!MediaRecorder.isTypeSupported(recMime)) recMime = 'video/webm';
+
+      const recordedBlobs = [];
+      const recorder = new MediaRecorder(combinedStream, {
+        mimeType: recMime,
+        videoBitsPerSecond: 40000000
+      });
+
+      recorder.ondataavailable = (e) => {
+        if (e.data && e.data.size > 0) recordedBlobs.push(e.data);
+      };
+      recorder.start();
+
+      let curTime = 0;
+      while (curTime < duration) {
+        sourceVideo.currentTime = curTime;
+        await new Promise(r => sourceVideo.onseeked = r);
+
+        renderFrame(true);
+
+        curTime += frameInterval;
+        const pct = Math.min(100, Math.round((curTime / duration) * 100));
+        progressBar.style.width = `${pct}%`;
+        statusText.textContent = `⚡ 120+ブロック配置中... ${pct}% (${curTime.toFixed(1)}s / ${duration.toFixed(1)}s)`;
+
+        await new Promise(r => setTimeout(r, 0));
+      }
+
+      recorder.stop();
+      await new Promise(r => recorder.onstop = r);
+
+      const webmBlob = new Blob(recordedBlobs, { type: recMime });
+      const format = exportFormat.value;
+
+      // WebM直接出力の場合
+      if (format === 'webm') {
+        finalDownloadUrl = URL.createObjectURL(webmBlob);
+        finishExport('webm');
+        return;
+      }
+
+      // FFmpeg による MP4 / MOV / GIF 変換
+      statusText.textContent = `FFmpeg で ${format.toUpperCase()} 形式を生成中...`;
+      try {
+        if (!ffmpegInstance) {
+          ffmpegInstance = FFmpeg.createFFmpeg({ log: false });
+          await ffmpegInstance.load();
+        }
+
+        ffmpegInstance.FS('writeFile', 'input.webm', await FFmpeg.fetchFile(webmBlob));
+        const outFile = `output.${format}`;
+        let cmd = ['-i', 'input.webm'];
+
+        if (format === 'gif') {
+          cmd.push('-vf', 'fps=15,scale=480:-1:flags=lanczos', '-c:v', 'gif');
+        } else {
+          ffmpegInstance.FS('writeFile', 'orig_video', await FFmpeg.fetchFile(currentFile));
+          cmd.push('-i', 'orig_video');
+          cmd.push('-map', '0:v:0', '-map', '1:a:0?');
+          cmd.push('-c:v', 'copy', '-c:a', 'aac', '-b:a', '256k', '-shortest');
+          if (format === 'mov') cmd.push('-f', 'mov');
+        }
+        cmd.push(outFile);
+
+        await ffmpegInstance.run(...cmd);
+
+        const outData = ffmpegInstance.FS('readFile', outFile);
+        const mimeMap = { mp4: 'video/mp4', mov: 'video/quicktime', gif: 'image/gif' };
+        const finalBlob = new Blob([outData.buffer], { type: mimeMap[format] });
+        finalDownloadUrl = URL.createObjectURL(finalBlob);
+
+        try {
+          ffmpegInstance.FS('unlink', 'input.webm');
+          ffmpegInstance.FS('unlink', outFile);
+          if (format !== 'gif') ffmpegInstance.FS('unlink', 'orig_video');
+        } catch (_) {}
+
+        finishExport(format);
+      } catch (err) {
+        console.warn('FFmpeg fallback to WebM:', err);
+        finalDownloadUrl = URL.createObjectURL(webmBlob);
+        finishExport('webm');
+      }
+    });
+
+    // 拡張子バグを絶対に起こさないクリーンなファイル名決定ロジック
+    function finishExport(actualExtension) {
+      progressBar.style.width = '100%';
+      const ext = actualExtension.toLowerCase();
+
+      // 元のファイル名から拡張子を完全に除去（例: sample.mov -> sample）
+      const baseName = currentFile
+        ? currentFile.name.replace(/\.[^/.]+$/, "")
+        : "minecraft_movie";
+
+      // 1度だけ正確な拡張子を付与
+      const cleanFileName = `${baseName}_minecraft.${ext}`;
+
+      statusText.textContent = `✅ ${ext.toUpperCase()} 動画の出力が完了しました！`;
+      downloadBtn.style.display = 'inline-block';
+      downloadBtn.textContent = `${ext.toUpperCase()} をダウンロード`;
+
+      downloadBtn.onclick = () => {
+        const a = document.createElement('a');
+        a.href = finalDownloadUrl;
+        a.download = cleanFileName;
+        a.click();
+      };
+
+      csvBtn.style.display = 'inline-block';
+      csvBtn.onclick = () => exportCSV(baseName);
+
+      const sorted = Object.entries(totalUsageMap).sort((a, b) => b[1] - a[1]).slice(0, 5);
+      document.getElementById('blockUsageSummary').textContent =
+        `📊 建築資材トップ5: ` + sorted.map(([k, v]) => `${k} (${(v/64).toFixed(1)}スタック)`).join(' / ');
+
+      convertBtn.disabled = false;
+    }
+
+    function exportCSV(baseName) {
+      let csv = "ブロック名,使用個数,スタック数(64個/枠)\n";
+      const sorted = Object.entries(totalUsageMap).sort((a, b) => b[1] - a[1]);
+      sorted.forEach(([name, count]) => {
+        csv += `"${name}",${count},${(count / 64).toFixed(2)}\n`;
+      });
+      const blob = new Blob([new Uint8Array([0xEF, 0xBB, 0xBF]), csv], { type: "text/csv;charset=utf-8" });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `${baseName}_materials.csv`;
+      a.click();
+    }
+
+    loadAllAssets();
+  </script>
+</body>
+</html>
